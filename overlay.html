@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Donatie-overlay</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  #alert {
+    position: relative;
+    transform: scale(0.7) translateY(20px);
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(.34,1.56,.64,1), opacity 0.4s ease;
+    background: linear-gradient(160deg, #1F7A4C 0%, #0F4A2C 100%);
+    color: #fff;
+    border-radius: 1.5rem;
+    padding: 2rem 3rem 2.25rem;
+    text-align: center;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.12) inset;
+    max-width: 34rem;
+  }
+  #alert.show {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  .frog {
+    font-size: 3.5rem;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+    display: inline-block;
+    animation: bob 1.4s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50% { transform: translateY(-10px) rotate(4deg); }
+  }
+
+  .eyebrow {
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8FF0B8;
+  }
+
+  .zin {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .zin .naam { color: #fff; font-weight: 800; }
+  .zin .bedrag {
+    display: block;
+    margin: 0.2em 0;
+    color: #FF9DBB;
+    font-weight: 800;
+    font-size: 1.9rem;
+  }
+
+  .deeltje {
+    position: absolute;
+    font-size: 1.4rem;
+    opacity: 0;
+    animation: zweef 2.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes zweef {
+    0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(0deg); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx), -110px) scale(1.1) rotate(20deg); }
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="alert">
+      <div class="frog">🐸</div>
+      <p class="eyebrow">Nieuwe donatie</p>
+      <p class="zin">
+        <span class="naam" id="naam">-</span> doneerde<br>
+        <span class="bedrag" id="bedrag">€0</span>
+        aan <strong>Stichting Opkikker</strong> 💚
+      </p>
+    </div>
+  </div>
+
+<script>
+  var stage = document.getElementById('stage');
+  var alertEl = document.getElementById('alert');
+  var naamEl = document.getElementById('naam');
+  var bedragEl = document.getElementById('bedrag');
+  var wachtrij = [];
+  var bezig = false;
+  var DEELTJES = ['🐸', '💚', '✨', '🍀'];
+
+  function spawnDeeltjes() {
+    for (var i = 0; i < 8; i++) {
+      var el = document.createElement('div');
+      el.className = 'deeltje';
+      el.textContent = DEELTJES[Math.floor(Math.random() * DEELTJES.length)];
+      var dx = (Math.random() - 0.5) * 220;
+      el.style.setProperty('--dx', dx + 'px');
+      el.style.left = (46 + Math.random() * 8) + '%';
+      el.style.top = (38 + Math.random() * 12) + '%';
+      el.style.animationDelay = (Math.random() * 0.4) + 's';
+      stage.appendChild(el);
+      setTimeout((function (node) { return function () { node.remove(); }; })(el), 3000);
+    }
+  }
+
+  function speelGeluid() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var noten = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6, een blij oplopend akkoordje
+      noten.forEach(function (freq, i) {
+        var t = ctx.currentTime + i * 0.09;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.1, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.4);
+      });
+    } catch (e) { /* geen audio beschikbaar, sla stil over */ }
+  }
+
+  function toon(donatie) {
+    naamEl.textContent = donatie.naam;
+    bedragEl.textContent = '€' + donatie.bedrag;
+    alertEl.classList.add('show');
+    spawnDeeltjes();
+    speelGeluid();
+    setTimeout(function () {
+      alertEl.classList.remove('show');
+      setTimeout(volgende, 500);
+    }, 7000);
+  }
+
+  function volgende() {
+    if (!wachtrij.length) { bezig = false; return; }
+    bezig = true;
+    toon(wachtrij.shift());
+  }
+
+  // Vast adres van het overlay-servertje (Railway), zodat deze pagina ook overal elders
+  // gehost kan worden (bijv. streamersmeteenhart.nl/overlay.html via Netlify) en toch met de
+  // juiste server verbindt, in plaats van te vertrouwen op waar de pagina zelf vandaan komt.
+  var WS_URL = 'wss://streamersmeteenhart-alerts-production.up.railway.app/ws';
+
+  function verbind() {
+    var ws = new WebSocket(WS_URL);
+
+    ws.onmessage = function (event) {
+      var data = JSON.parse(event.data);
+      if (data.type !== 'donatie') return;
+      wachtrij.push(data);
+      if (!bezig) volgende();
+    };
+
+    ws.onclose = function () {
+      setTimeout(verbind, 3000);
+    };
+  }
+
+  verbind();
+</script>
+</body>
+</html>
