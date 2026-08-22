@@ -440,8 +440,8 @@
 
     <div class="strip">
       <div>
-        <div class="num">€5.000</div>
-        <div class="lbl">ons streefbedrag</div>
+        <div class="num" id="opgehaald">€0</div>
+        <div class="lbl">opgehaald van €5.000</div>
       </div>
       <div>
         <div class="num countdown" id="cd-days">–</div>
@@ -527,6 +527,22 @@
     }
     tick();
     setInterval(tick, 60000);
+  })();
+
+  (function () {
+    var opgehaaldEl = document.getElementById('opgehaald');
+    if (!opgehaaldEl) return;
+
+    function haalOp() {
+      fetch('https://streamersmeteenhart-alerts-production.up.railway.app/status')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          opgehaaldEl.textContent = '€' + Number(data.totaal).toLocaleString('nl-NL');
+        })
+        .catch(function () {});
+    }
+    haalOp();
+    setInterval(haalOp, 60000);
   })();
 
 </script>

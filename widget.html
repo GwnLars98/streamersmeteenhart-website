@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voortgang-widget</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kaart {
+    width: min(92vw, 26rem);
+    padding: 1.1rem 1.5rem;
+    border-radius: 1.2rem;
+    background: rgba(13, 40, 26, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+    color: #fff;
+  }
+
+  .rij {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #8FF0B8;
+  }
+  .bedragen {
+    font-weight: 800;
+    font-size: 1.15rem;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  .bedragen .huidig { color: #fff; }
+  .bedragen .doel { color: rgba(255, 255, 255, 0.65); font-weight: 600; }
+
+  .balk-achtergrond {
+    margin-top: 0.6rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+  }
+  .balk-vulling {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #1F7A4C, #52C285);
+    transition: width 0.6s ease;
+  }
+</style>
+</head>
+<body>
+  <div class="kaart">
+    <div class="rij">
+      <span class="label">🐸 Streamers met een Hart</span>
+      <span class="bedragen"><span class="huidig" id="huidig">€0</span> <span class="doel" id="doel">/ €5.000</span></span>
+    </div>
+    <div class="balk-achtergrond">
+      <div class="balk-vulling" id="balk"></div>
+    </div>
+  </div>
+
+<script>
+  var huidigEl = document.getElementById('huidig');
+  var doelEl = document.getElementById('doel');
+  var balkEl = document.getElementById('balk');
+
+  function formatteer(bedrag) {
+    return '€' + Number(bedrag).toLocaleString('nl-NL');
+  }
+
+  function bijwerken(data) {
+    huidigEl.textContent = formatteer(data.totaal);
+    doelEl.textContent = '/ ' + formatteer(data.doel);
+    var pct = data.doel > 0 ? Math.min(100, (data.totaal / data.doel) * 100) : 0;
+    balkEl.style.width = pct + '%';
+  }
+
+  // Direct de laatste bekende stand tonen, daarna live bijwerken via WebSocket.
+  fetch('https://streamersmeteenhart-alerts-production.up.railway.app/status')
+    .then(function (r) { return r.json(); })
+    .then(bijwerken)
+    .catch(function () {});
+
+  function verbind() {
+    var ws = new WebSocket('wss://streamersmeteenhart-alerts-production.up.railway.app/ws');
+
+    ws.onmessage = function (event) {
+      var data = JSON.parse(event.data);
+      if (data.type !== 'totaal') return;
+      bijwerken(data);
+    };
+
+    ws.onclose = function () {
+      setTimeout(verbind, 3000);
+    };
+  }
+
+  verbind();
+</script>
+</body>
+</html>
