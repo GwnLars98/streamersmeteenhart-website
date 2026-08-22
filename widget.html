@@ -21,6 +21,7 @@
   }
 
   .kaart {
+    position: relative;
     width: min(92vw, 26rem);
     padding: 1.1rem 1.5rem;
     border-radius: 1.2rem;
@@ -29,6 +30,14 @@
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
     color: #fff;
+    transition: box-shadow 0.6s ease, transform 0.4s ease;
+  }
+  .kaart.voltooid {
+    animation: gloei 1.8s ease-in-out infinite;
+  }
+  @keyframes gloei {
+    0%, 100% { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(240, 172, 78, 0.5), 0 0 25px rgba(240, 172, 78, 0.35); }
+    50% { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(240, 172, 78, 0.9), 0 0 40px rgba(240, 172, 78, 0.6); }
   }
 
   .rij {
@@ -43,7 +52,9 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #8FF0B8;
+    transition: color 0.4s ease;
   }
+  .kaart.voltooid .label { color: #F0AC4E; }
   .bedragen {
     font-weight: 800;
     font-size: 1.15rem;
@@ -51,6 +62,7 @@
   }
   .bedragen .huidig { color: #fff; }
   .bedragen .doel { color: rgba(255, 255, 255, 0.65); font-weight: 600; }
+  .kaart.voltooid .bedragen .huidig { color: #F0AC4E; }
 
   .balk-achtergrond {
     margin-top: 0.6rem;
@@ -64,14 +76,36 @@
     width: 0%;
     border-radius: 999px;
     background: linear-gradient(90deg, #1F7A4C, #52C285);
-    transition: width 0.6s ease;
+    transition: width 0.6s ease, background 0.6s ease;
+  }
+  .balk-vulling.voltooid {
+    background: linear-gradient(90deg, #D98B2B, #F0AC4E, #D98B2B);
+    background-size: 200% 100%;
+    animation: schuiven 2s linear infinite;
+  }
+  @keyframes schuiven {
+    0% { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .deeltje {
+    position: absolute;
+    font-size: 1.3rem;
+    opacity: 0;
+    animation: zweef 2.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes zweef {
+    0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(0deg); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx), -80px) scale(1.1) rotate(20deg); }
   }
 </style>
 </head>
 <body>
-  <div class="kaart">
+  <div class="kaart" id="kaart">
     <div class="rij">
-      <span class="label">🐸 Streamers met een Hart</span>
+      <span class="label" id="label">🐸 Streamers met een Hart</span>
       <span class="bedragen"><span class="huidig" id="huidig">€0</span> <span class="doel" id="doel">/ €5.000</span></span>
     </div>
     <div class="balk-achtergrond">
@@ -83,9 +117,29 @@
   var huidigEl = document.getElementById('huidig');
   var doelEl = document.getElementById('doel');
   var balkEl = document.getElementById('balk');
+  var kaartEl = document.getElementById('kaart');
+  var labelEl = document.getElementById('label');
+  var origineelLabel = labelEl.textContent;
+  var doelBereikt = false;
+  var DEELTJES = ['🎉', '💚', '🐸', '✨', '🍀'];
 
   function formatteer(bedrag) {
     return '€' + Number(bedrag).toLocaleString('nl-NL');
+  }
+
+  function vierFeest() {
+    for (var i = 0; i < 14; i++) {
+      var el = document.createElement('div');
+      el.className = 'deeltje';
+      el.textContent = DEELTJES[Math.floor(Math.random() * DEELTJES.length)];
+      var dx = (Math.random() - 0.5) * 260;
+      el.style.setProperty('--dx', dx + 'px');
+      el.style.left = (10 + Math.random() * 80) + '%';
+      el.style.top = (30 + Math.random() * 40) + '%';
+      el.style.animationDelay = (Math.random() * 0.6) + 's';
+      kaartEl.appendChild(el);
+      setTimeout((function (node) { return function () { node.remove(); }; })(el), 3200);
+    }
   }
 
   function bijwerken(data) {
@@ -93,6 +147,14 @@
     doelEl.textContent = '/ ' + formatteer(data.doel);
     var pct = data.doel > 0 ? Math.min(100, (data.totaal / data.doel) * 100) : 0;
     balkEl.style.width = pct + '%';
+
+    var nuBereikt = pct >= 100;
+    balkEl.classList.toggle('voltooid', nuBereikt);
+    kaartEl.classList.toggle('voltooid', nuBereikt);
+    labelEl.textContent = nuBereikt ? '🎉 DOEL BEREIKT!' : origineelLabel;
+
+    if (nuBereikt && !doelBereikt) vierFeest();
+    doelBereikt = nuBereikt;
   }
 
   // Direct de laatste bekende stand tonen, daarna live bijwerken via WebSocket.
