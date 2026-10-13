@@ -6,46 +6,85 @@
 <title>Donatie-overlay v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,800;1,9..144,700&family=Work+Sans:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,800;1,9..144,800&family=Work+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Donatie-alert in de 3D-stijl van streamersmeteenhart.nl: een glazen kaart klapt open, het
-     3D-hart tolt binnen en vult zich tot het nieuwe totaal. Browserbron 1920x1080, transparant.
-     ?demo=1 toont om de paar seconden een voorbeelddonatie. */
-  :root { --groen: #52c285; --hart: #e23f73; --goud: #f0b44a; --tekst: #f2fbef; --dim: #b9d3bf; }
+  /* Donatie-alert v2 voor Streamers met een Hart. Browserbron 1920x1080, transparant.
+     Volgorde: het glazen hart tolt binnen, een schokgolf en een regen van 3D-hartjes (achter de
+     kaart), een zachte gloed, de kaart vouwt open uit het hart, de naam verschijnt letter voor letter, het
+     bedrag telt op en de balk groeit naar het nieuwe totaal. ?demo=1 voor voorbeelddonaties. */
+  :root { --groen: #52c285; --groen-diep: #1f7a4c; --hart: #e23f73; --roze: #ff7aa6; --goud: #f0b44a; --goud-licht: #ffe39a; --tekst: #f4fcf1; --dim: #b9d3bf; }
   @property --hoek { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
   @keyframes draai { to { --hoek: 360deg; } }
   * { box-sizing: border-box; }
   html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; font-family: 'Work Sans', system-ui, sans-serif; }
-  #stage { position: absolute; inset: 0; display: grid; place-items: center; perspective: 1600px; }
-  #alert { position: relative; display: grid; grid-template-columns: 300px auto; align-items: center; gap: 6px; padding: 18px 56px 18px 18px; border-radius: 40px;
-    background: radial-gradient(120% 140% at 0% 0%, rgba(82, 194, 133, 0.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(226, 63, 115, 0.25), transparent 55%), rgba(8, 22, 14, 0.9);
-    box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8), 0 0 70px -20px rgba(226, 63, 115, 0.7);
-    transform: rotateX(-90deg) scale(0.8); transform-origin: 50% 0; opacity: 0;
-    transition: transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.35s; }
-  #alert.show { transform: rotateX(0) scale(1); opacity: 1; transition: transform 0.95s cubic-bezier(0.2, 1.35, 0.4, 1), opacity 0.25s; }
-  #alert::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 3px; pointer-events: none;
+
+  #regen { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+  #podium { position: absolute; left: 50%; top: 50%; width: 1240px; height: 380px; transform: translate(-50%, -50%); }
+
+  /* schokgolf */
+  .golf { position: absolute; left: 180px; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; border: 6px solid var(--goud-licht); opacity: 0; box-shadow: 0 0 40px var(--roze), inset 0 0 40px var(--roze); }
+  .golf.knal { animation: knal 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+  .golf.twee.knal { animation-delay: 0.12s; border-color: var(--groen); }
+  @keyframes knal { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(4.2); border-width: 1px; } }
+
+  /* de kaart vouwt open vanuit het hart */
+  .kaart { position: absolute; left: 180px; top: 50%; height: 290px; width: 1040px; transform: translateY(-50%); display: flex; align-items: center; padding: 0 70px 0 210px; border-radius: 145px;
+    background:
+      radial-gradient(90% 140% at 0% 50%, rgba(226, 63, 115, 0.35), transparent 60%),
+      radial-gradient(70% 120% at 100% 0%, rgba(82, 194, 133, 0.28), transparent 60%),
+      linear-gradient(160deg, rgba(14, 40, 26, 0.96), rgba(6, 18, 11, 0.96));
+    box-shadow: 0 50px 120px -40px rgba(0, 0, 0, 0.9), 0 0 90px -30px rgba(226, 63, 115, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    clip-path: inset(0 100% 0 0 round 145px); transition: clip-path 0.55s cubic-bezier(0.5, 0, 0.75, 0); }
+  .open .kaart { clip-path: inset(0 0 0 0 round 145px); transition: clip-path 1s cubic-bezier(0.16, 1, 0.3, 1); }
+  .kaart::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 4px; pointer-events: none;
     background: conic-gradient(from var(--hoek), var(--groen), var(--hart), var(--goud), var(--hart), var(--groen));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: draai 3s linear infinite; }
-  #hart { width: 300px; height: 300px; display: block; margin: -40px 0; }
-  .eyebrow { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: var(--groen); }
-  .naam { margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 64px; line-height: 1; color: var(--tekst); max-width: 760px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 0 30px rgba(226, 63, 115, 0.45); }
-  .zin { margin: 12px 0 0; font-size: 30px; font-weight: 500; color: var(--dim); }
-  .bedrag { font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 44px; color: var(--goud); text-shadow: 0 0 24px rgba(240, 180, 74, 0.5); }
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: draai 2.6s linear infinite; }
+  /* glansveeg over de kaart */
+  .kaart::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.16) 48%, transparent 60%); background-size: 260% 100%; background-position: 130% 0; }
+  .open .kaart::after { animation: veeg 1.6s 0.7s ease-out forwards; }
+  @keyframes veeg { to { background-position: -130% 0; } }
+
+  .tekst { display: grid; gap: 10px; min-width: 0; width: 100%; }
+  .pil { justify-self: start; display: inline-flex; align-items: center; gap: 10px; padding: 7px 18px; border-radius: 999px; font-size: 20px; font-weight: 700; letter-spacing: 0.26em; text-transform: uppercase; color: #eafff2;
+    background: linear-gradient(135deg, rgba(31, 122, 76, 0.9), rgba(82, 194, 133, 0.6)); box-shadow: 0 0 24px -6px var(--groen); opacity: 0; transform: translateY(10px); transition: 0.5s 0.45s cubic-bezier(0.2, 1.3, 0.4, 1); }
+  .pil svg { width: 22px; height: 22px; }
+  .open .pil { opacity: 1; transform: none; }
+  .naam { margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 78px; line-height: 1; color: var(--tekst); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 0 34px rgba(255, 122, 166, 0.5); }
+  .naam span { display: inline-block; opacity: 0; transform: translateY(40px) rotateX(-90deg); transform-origin: 50% 100%; }
+  .open .naam span { animation: letter 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+  @keyframes letter { to { opacity: 1; transform: none; } }
+  .zin { margin: 0; display: flex; align-items: baseline; gap: 14px; font-size: 30px; font-weight: 600; color: var(--dim); opacity: 0; transition: opacity 0.5s 0.9s; }
+  .open .zin { opacity: 1; }
+  .bedrag { font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 62px; line-height: 1;
+    background: linear-gradient(100deg, #c98a1e 10%, var(--goud-licht) 40%, #fff6d6 50%, var(--goud) 62%, #c98a1e 90%); background-size: 240% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(240, 180, 74, 0.55)); animation: goudglans 2.4s linear infinite; }
+  @keyframes goudglans { from { background-position: 120% 0; } to { background-position: -120% 0; } }
   .zin strong { color: var(--tekst); }
-  .vonk { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px 4px var(--c); pointer-events: none; animation: vlieg 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
-  @keyframes vlieg { to { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
+  .voortgang { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; margin-top: 6px; opacity: 0; transform: translateY(8px); transition: 0.5s 1.2s; }
+  .open .voortgang { opacity: 1; transform: none; }
+  .balk { position: relative; height: 14px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); }
+  .balk i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--hart), var(--roze), var(--goud)); box-shadow: 0 0 18px var(--hart); }
+  .balk b { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--goud-licht); opacity: 0; }
+  .stand { font-size: 22px; font-weight: 600; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stand strong { color: var(--tekst); }
+
+  #hart { position: absolute; left: 0; top: 50%; width: 400px; height: 400px; transform: translate(-20px, -50%); z-index: 4; pointer-events: none; }
 </style>
 </head>
 <body>
-<div id="stage">
-  <div id="alert">
-    <canvas id="hart"></canvas>
-    <div>
-      <p class="eyebrow">Nieuwe donatie</p>
-      <p class="naam" id="naam">-</p>
-      <p class="zin">doneerde <span class="bedrag" id="bedrag">€0</span> aan <strong>Stichting Opkikker</strong></p>
+<canvas id="regen"></canvas>
+<div id="podium">
+  
+  <div class="golf" id="golf1"></div><div class="golf twee" id="golf2"></div>
+  <div class="kaart">
+    <div class="tekst">
+      <span class="pil"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff7aa6" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.6 4.5c2.1 0 3.6 1.2 4.4 2.6.8-1.4 2.3-2.6 4.4-2.6 3.6 0 5.7 3.9 4.2 7.3C19.5 16.4 12 21 12 21z"/></svg>Nieuwe donatie</span>
+      <p class="naam" id="naam"></p>
+      <p class="zin"><span class="bedrag" id="bedrag">€0</span><span>voor <strong>Stichting Opkikker</strong></span></p>
+      <div class="voortgang"><div class="balk"><i id="balk"></i><b id="balk-flits"></b></div><span class="stand" id="stand"><strong>€0</strong> van €5.000</span></div>
     </div>
   </div>
+  <canvas id="hart"></canvas>
 </div>
 
 <script type="importmap">
@@ -55,61 +94,200 @@
 } }
 </script>
 <script type="module">
-  import { startHart } from './hart3d.js';
+  import * as THREE from 'three';
+  import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+  import { startHart, hartGeo } from './hart3d.js';
+
   const SERVER = 'https://streamersmeteenhart-alerts-production.up.railway.app';
   const WS_URL = 'wss://streamersmeteenhart-alerts-production.up.railway.app/ws';
   const $ = id => document.getElementById(id);
-  const hart = startHart($('hart'), { muis: false, hartjes: 5, vonken: false, afstand: 11.5 });
-  let doel = 5000;
-  const wachtrij = [];
-  let bezig = false;
+  const podium = $('podium');
+  const demo = new URLSearchParams(location.search).get('demo') === '1';
+  const hart = startHart($('hart'), { muis: false, hartjes: 6, vonken: true, afstand: 10.5, verborgen: true });
+  const euro = n => '€' + Number(n).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
+  let totaal = 0, doel = 5000;
 
-  // Vult het hart tot het actuele totaal, ook als er geen alert speelt.
-  async function haalStand() {
-    try { const d = await (await fetch(`${SERVER}/status`)).json(); doel = Number(d.doel) || doel; hart.zetFractie(Math.min(1, Number(d.totaal) / doel)); } catch { }
-  }
+  // ---------- regen van 3D-hartjes over het hele scherm ----------
+  const regen = (() => {
+    const canvas = $('regen');
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    const scene = new THREE.Scene();
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.z = 20;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const zon = new THREE.DirectionalLight(0xffffff, 2); zon.position.set(3, 6, 8); scene.add(zon);
+    const N = 100;
+    const mesh = new THREE.InstancedMesh(hartGeo(0.3, 0.16), new THREE.MeshPhysicalMaterial({ roughness: 0.22, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.05, iridescence: 0.5 }), N);
+    const kleuren = [0xe23f73, 0xff7aa6, 0x52c285, 0xf0b44a, 0xffffff, 0xe23f73];
+    const c = new THREE.Color();
+    for (let i = 0; i < N; i++) mesh.setColorAt(i, c.set(kleuren[i % kleuren.length]));
+    scene.add(mesh);
+    // zachte gloed achter het hart (in dit canvas i.p.v. CSS: een grote doorschijnende CSS-laag
+    // over een WebGL-canvas maakt in sommige browsers de hele transparante achtergrond dicht)
+    const gloedTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const x = c.getContext('2d'), g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+      g.addColorStop(0, 'rgba(255,122,166,0.75)'); g.addColorStop(0.3, 'rgba(240,180,74,0.3)'); g.addColorStop(0.55, 'rgba(82,194,133,0.14)'); g.addColorStop(1, 'rgba(82,194,133,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+      return new THREE.CanvasTexture(c);
+    })();
+    const gloed = new THREE.Sprite(new THREE.SpriteMaterial({ map: gloedTex, transparent: true, opacity: 0, depthWrite: false }));
+    gloed.position.z = -2;
+    scene.add(gloed);
+    let gloedDoel = 0, gloedSchaal = 4;
+    // Onzichtbare uitsparing in de vorm van de kaart (schrijft alleen diepte): hartjes en gloed die
+    // erachter zitten worden niet getekend, zodat ze achter de kaart langs lijken te vliegen. Het
+    // canvas zelf moet bovenop liggen; eronder maakt de browser de transparante achtergrond dicht.
+    let uitsparing = null;
+    function zetUitsparing(el) {
+      if (uitsparing) { scene.remove(uitsparing); uitsparing.geometry.dispose(); }
+      const r = el.getBoundingClientRect(), a = wereld(r.left, r.bottom), b = wereld(r.right, r.top);
+      const w = b.x - a.x, h = b.y - a.y, rr = h / 2, vorm = new THREE.Shape();
+      vorm.moveTo(a.x + rr, a.y); vorm.lineTo(b.x - rr, a.y); vorm.absarc(b.x - rr, a.y + rr, rr, -Math.PI / 2, Math.PI / 2);
+      vorm.lineTo(a.x + rr, b.y); vorm.absarc(a.x + rr, a.y + rr, rr, Math.PI / 2, Math.PI * 1.5);
+      uitsparing = new THREE.Mesh(new THREE.ShapeGeometry(vorm, 24), new THREE.MeshBasicMaterial({ colorWrite: false }));
+      uitsparing.renderOrder = -1;
+      scene.add(uitsparing);
+    }
+    const d = Array.from({ length: N }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), r: new THREE.Euler(), w: new THREE.Vector3(), s: 0, leeft: 0 }));
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+    function maat() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+    maat(); addEventListener('resize', maat);
+    let actief = false;
+    // schermpositie (px) naar wereldpositie op z=0
+    function wereld(x, y) {
+      camera.updateMatrixWorld();   // ook als er nog niets getekend is
+      const v = new THREE.Vector3((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1, 0.5).unproject(camera).sub(camera.position).normalize();
+      return camera.position.clone().add(v.multiplyScalar(-camera.position.z / v.z));
+    }
+    function gloeien(x, y, aan) {
+      if (aan) { gloed.position.copy(wereld(x, y)); gloed.position.z = -2; gloedSchaal = 4; }
+      gloedDoel = aan ? 1 : 0;
+    }
+    function knal(x, y) {
+      const o = wereld(x, y);
+      d.forEach(h => {
+        // de meeste hartjes vliegen achter de kaart langs (z < 0), een paar ervoor
+        const voor = Math.random() < 0.18;
+        h.p.copy(o).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, voor ? 1.5 : -0.6));
+        const a = Math.random() * Math.PI * 2, kracht = 6 + Math.random() * 14;
+        h.v.set(Math.cos(a) * kracht * 1.3, Math.sin(a) * kracht * 0.8 + 7, voor ? 2 + Math.random() * 3 : -(1 + Math.random() * 6));
+        h.r.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        h.w.set((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9);
+        h.s = 0.14 + Math.random() * 0.26; h.leeft = 0;
+      });
+      actief = true;
+    }
+    const klok = new THREE.Clock();
+    renderer.setAnimationLoop(() => {
+      const dt = Math.min(klok.getDelta(), 0.05);
+      gloed.material.opacity += (gloedDoel - gloed.material.opacity) * Math.min(1, dt * 4);
+      gloedSchaal += ((gloedDoel ? 17 : 10) - gloedSchaal) * Math.min(1, dt * 2.5);
+      gloed.scale.setScalar(gloedSchaal);
+      mesh.visible = actief;
+      if (!actief && gloed.material.opacity < 0.01) { renderer.clear(); return; }
+      let levend = 0;
+      d.forEach((h, i) => {
+        h.leeft += dt;
+        h.v.y -= 16 * dt; h.v.multiplyScalar(Math.pow(0.55, dt));
+        h.p.addScaledVector(h.v, dt);
+        h.r.x += h.w.x * dt; h.r.y += h.w.y * dt; h.r.z += h.w.z * dt;
+        const krimp = Math.max(0, 1 - Math.max(0, h.leeft - 2.4) / 1.2);
+        if (krimp > 0) levend++;
+        m.compose(h.p, q.setFromEuler(h.r), sc.setScalar(h.s * Math.min(1, h.leeft * 6) * krimp + 1e-4));
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      renderer.render(scene, camera);
+      if (!levend) actief = false;
+    });
+    return { knal, gloeien, zetUitsparing };
+  })();
 
-  // Blij oplopend akkoordje (C-E-G-C) met een glinsterend belletje erboven.
+  // ---------- geluid: helder belletjesakkoord met een zachte glinster erboven ----------
   function speelGeluid() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [[523.25, 0], [659.25, 0.09], [783.99, 0.18], [1046.5, 0.27], [2093, 0.36]].forEach(([f, d], i) => {
-        const t = ctx.currentTime + d, osc = ctx.createOscillator(), gain = ctx.createGain();
-        osc.type = i === 4 ? 'sine' : 'triangle'; osc.frequency.value = f;
-        gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(i === 4 ? 0.05 : 0.1, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, t + (i === 4 ? 0.8 : 0.4));
-        osc.connect(gain).connect(ctx.destination); osc.start(t); osc.stop(t + 0.9);
-      });
+      const noot = (f, d, duur, vorm, piek) => {
+        const t = ctx.currentTime + d, o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = vorm; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(piek, t + 0.015); g.gain.exponentialRampToValueAtTime(0.001, t + duur);
+        o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + duur + 0.05);
+      };
+      [[523.25, 0], [659.25, 0.08], [783.99, 0.16], [1046.5, 0.24]].forEach(([f, d]) => { noot(f, d, 0.5, 'triangle', 0.1); noot(f * 2, d, 0.35, 'sine', 0.03); });
+      [1567.98, 2093, 2637.02, 3135.96].forEach((f, i) => noot(f, 0.38 + i * 0.06, 0.6, 'sine', 0.035));
     } catch { /* geen audio beschikbaar */ }
   }
 
-  function vonken() {
-    const r = $('hart').getBoundingClientRect();
-    for (let i = 0; i < 26; i++) {
-      const v = document.createElement('div');
-      v.className = 'vonk';
-      const a = Math.random() * Math.PI * 2, d = 160 + Math.random() * 260;
-      v.style.left = `${r.left + r.width / 2}px`; v.style.top = `${r.top + r.height / 2}px`;
-      v.style.setProperty('--dx', `${Math.cos(a) * d}px`); v.style.setProperty('--dy', `${Math.sin(a) * d}px`);
-      v.style.setProperty('--c', ['#52c285', '#e23f73', '#f0b44a'][i % 3]);
-      v.style.animationDelay = `${0.35 + Math.random() * 0.3}s`;
-      document.body.append(v);
-      setTimeout(() => v.remove(), 2600);
-    }
+  // ---------- de alert ----------
+  const wacht = ms => new Promise(r => setTimeout(r, ms));
+  function telOp(el, van, tot, ms, opmaak) {
+    const start = performance.now();
+    return new Promise(klaar => {
+      const stap = nu => {
+        const p = Math.min(1, (nu - start) / ms), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = opmaak(van + (tot - van) * e);
+        p < 1 ? requestAnimationFrame(stap) : klaar();
+      };
+      requestAnimationFrame(stap);
+    });
+  }
+  async function haalStand() {
+    try { const s = await (await fetch(`${SERVER}/status`)).json(); totaal = Number(s.totaal) || totaal; doel = Number(s.doel) || doel; } catch { }
   }
 
-  const wacht = ms => new Promise(r => setTimeout(r, ms));
-  async function toon(d) {
-    $('naam').textContent = d.naam || 'Iemand';
-    $('bedrag').textContent = '€' + Number(d.bedrag).toLocaleString('nl-NL');
-    $('alert').classList.add('show');
-    hart.pof();
-    vonken();
+  async function toon(don) {
+    const bedrag = Number(don.bedrag) || 0;
+    if (!demo) await haalStand();
+    const nieuw = demo ? totaal + bedrag : Math.max(totaal, bedrag);
+    const oud = Math.max(0, nieuw - bedrag);
+    totaal = nieuw;
+
+    const naam = (don.naam || 'Iemand').trim();
+    $('naam').innerHTML = '';
+    [...naam].forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch === ' ' ? ' ' : ch; s.style.animationDelay = `${0.55 + i * 0.045}s`; $('naam').append(s); });
+    $('bedrag').textContent = '€0';
+    const pOud = Math.min(1, oud / doel), pNieuw = Math.min(1, nieuw / doel);
+    $('balk').style.transition = 'none'; $('balk').style.width = (pOud * 100) + '%';
+    $('stand').innerHTML = `<strong>${euro(oud)}</strong> van ${euro(doel)}`;
+
+    // 1. hart tolt binnen
+    hart.zetFractie(pOud);
+    hart.binnen();
+    podium.classList.add('aan');
+    regen.zetUitsparing(document.querySelector('.kaart'));
+    const r = $('hart').getBoundingClientRect();
+    regen.gloeien(r.left + r.width / 2, r.top + r.height / 2, true);
+    await wacht(450);
+    // 2. knal: schokgolf, regen van hartjes, geluid
+    ['golf1', 'golf2'].forEach(id => { $(id).classList.remove('knal'); void $(id).offsetWidth; $(id).classList.add('knal'); });
+    regen.knal(r.left + r.width / 2, r.top + r.height / 2);
     speelGeluid();
-    haalStand();
-    await wacht(7000);
-    $('alert').classList.remove('show');
+    hart.pof();
+    // 3. kaart vouwt open, bedrag telt op
+    podium.classList.add('open');
     await wacht(700);
+    await telOp($('bedrag'), 0, bedrag, 1200, euro);
+    // 4. balk en hart groeien naar het nieuwe totaal
+    hart.zetFractie(pNieuw);
+    $('balk').style.transition = 'width 1.6s cubic-bezier(0.2, 1, 0.3, 1)';
+    $('balk').style.width = (pNieuw * 100) + '%';
+    telOp({ set textContent(v) { $('stand').innerHTML = `<strong>${v}</strong> van ${euro(doel)}`; } }, oud, nieuw, 1600, euro);
+    await wacht(5200);
+    // 5. afscheid
+    podium.classList.remove('open');
+    await wacht(350);
+    hart.weg();
+    regen.gloeien(0, 0, false);
+    podium.classList.remove('aan');
+    await wacht(900);
   }
+
+  const wachtrij = [];
+  let bezig = false;
   async function volgende() {
     if (bezig) return;
     bezig = true;
@@ -122,17 +300,17 @@
     ws.onmessage = e => {
       const d = JSON.parse(e.data);
       if (d.type === 'donatie') { wachtrij.push(d); volgende(); }
-      if (d.type === 'totaal') { doel = Number(d.doel) || doel; hart.zetFractie(Math.min(1, Number(d.totaal) / doel)); }
+      if (d.type === 'totaal') { totaal = Number(d.totaal) || totaal; doel = Number(d.doel) || doel; }
     };
     ws.onclose = () => setTimeout(verbind, 3000);
   }
 
-  haalStand();
-  if (new URLSearchParams(location.search).get('demo') === '1') {
-    const NAMEN = [['Bramble', 10], ['Pixelpiet', 25], ['Anoniem', 5]];
+  await haalStand();
+  if (demo) {
+    const VOORBEELD = [['Bramble', 10], ['Pixelpiet', 25], ['Zoë_Speelt', 5], ['Anoniem', 50]];
     let i = 0;
-    const demo = () => { const [naam, bedrag] = NAMEN[i++ % NAMEN.length]; wachtrij.push({ naam, bedrag }); volgende(); };
-    setTimeout(demo, 800); setInterval(demo, 9000);
+    const doe = () => { const [naam, bedrag] = VOORBEELD[i++ % VOORBEELD.length]; wachtrij.push({ naam, bedrag }); volgende(); };
+    setTimeout(doe, 800); setInterval(doe, 11000);
   } else verbind();
 </script>
 </body>
