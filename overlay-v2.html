@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Donatie-overlay v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,800;1,9..144,700&family=Work+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Donatie-alert in de 3D-stijl van streamersmeteenhart.nl: een glazen kaart klapt open, het
+     3D-hart tolt binnen en vult zich tot het nieuwe totaal. Browserbron 1920x1080, transparant.
+     ?demo=1 toont om de paar seconden een voorbeelddonatie. */
+  :root { --groen: #52c285; --hart: #e23f73; --goud: #f0b44a; --tekst: #f2fbef; --dim: #b9d3bf; }
+  @property --hoek { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  @keyframes draai { to { --hoek: 360deg; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; font-family: 'Work Sans', system-ui, sans-serif; }
+  #stage { position: absolute; inset: 0; display: grid; place-items: center; perspective: 1600px; }
+  #alert { position: relative; display: grid; grid-template-columns: 300px auto; align-items: center; gap: 6px; padding: 18px 56px 18px 18px; border-radius: 40px;
+    background: radial-gradient(120% 140% at 0% 0%, rgba(82, 194, 133, 0.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(226, 63, 115, 0.25), transparent 55%), rgba(8, 22, 14, 0.9);
+    box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8), 0 0 70px -20px rgba(226, 63, 115, 0.7);
+    transform: rotateX(-90deg) scale(0.8); transform-origin: 50% 0; opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.35s; }
+  #alert.show { transform: rotateX(0) scale(1); opacity: 1; transition: transform 0.95s cubic-bezier(0.2, 1.35, 0.4, 1), opacity 0.25s; }
+  #alert::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 3px; pointer-events: none;
+    background: conic-gradient(from var(--hoek), var(--groen), var(--hart), var(--goud), var(--hart), var(--groen));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: draai 3s linear infinite; }
+  #hart { width: 300px; height: 300px; display: block; margin: -40px 0; }
+  .eyebrow { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: var(--groen); }
+  .naam { margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 64px; line-height: 1; color: var(--tekst); max-width: 760px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 0 30px rgba(226, 63, 115, 0.45); }
+  .zin { margin: 12px 0 0; font-size: 30px; font-weight: 500; color: var(--dim); }
+  .bedrag { font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 44px; color: var(--goud); text-shadow: 0 0 24px rgba(240, 180, 74, 0.5); }
+  .zin strong { color: var(--tekst); }
+  .vonk { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px 4px var(--c); pointer-events: none; animation: vlieg 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+  @keyframes vlieg { to { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="alert">
+    <canvas id="hart"></canvas>
+    <div>
+      <p class="eyebrow">Nieuwe donatie</p>
+      <p class="naam" id="naam">-</p>
+      <p class="zin">doneerde <span class="bedrag" id="bedrag">€0</span> aan <strong>Stichting Opkikker</strong></p>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+  import { startHart } from './hart3d.js';
+  const SERVER = 'https://streamersmeteenhart-alerts-production.up.railway.app';
+  const WS_URL = 'wss://streamersmeteenhart-alerts-production.up.railway.app/ws';
+  const $ = id => document.getElementById(id);
+  const hart = startHart($('hart'), { muis: false, hartjes: 5, vonken: false, afstand: 11.5 });
+  let doel = 5000;
+  const wachtrij = [];
+  let bezig = false;
+
+  // Vult het hart tot het actuele totaal, ook als er geen alert speelt.
+  async function haalStand() {
+    try { const d = await (await fetch(`${SERVER}/status`)).json(); doel = Number(d.doel) || doel; hart.zetFractie(Math.min(1, Number(d.totaal) / doel)); } catch { }
+  }
+
+  // Blij oplopend akkoordje (C-E-G-C) met een glinsterend belletje erboven.
+  function speelGeluid() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [[523.25, 0], [659.25, 0.09], [783.99, 0.18], [1046.5, 0.27], [2093, 0.36]].forEach(([f, d], i) => {
+        const t = ctx.currentTime + d, osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = i === 4 ? 'sine' : 'triangle'; osc.frequency.value = f;
+        gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(i === 4 ? 0.05 : 0.1, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, t + (i === 4 ? 0.8 : 0.4));
+        osc.connect(gain).connect(ctx.destination); osc.start(t); osc.stop(t + 0.9);
+      });
+    } catch { /* geen audio beschikbaar */ }
+  }
+
+  function vonken() {
+    const r = $('hart').getBoundingClientRect();
+    for (let i = 0; i < 26; i++) {
+      const v = document.createElement('div');
+      v.className = 'vonk';
+      const a = Math.random() * Math.PI * 2, d = 160 + Math.random() * 260;
+      v.style.left = `${r.left + r.width / 2}px`; v.style.top = `${r.top + r.height / 2}px`;
+      v.style.setProperty('--dx', `${Math.cos(a) * d}px`); v.style.setProperty('--dy', `${Math.sin(a) * d}px`);
+      v.style.setProperty('--c', ['#52c285', '#e23f73', '#f0b44a'][i % 3]);
+      v.style.animationDelay = `${0.35 + Math.random() * 0.3}s`;
+      document.body.append(v);
+      setTimeout(() => v.remove(), 2600);
+    }
+  }
+
+  const wacht = ms => new Promise(r => setTimeout(r, ms));
+  async function toon(d) {
+    $('naam').textContent = d.naam || 'Iemand';
+    $('bedrag').textContent = '€' + Number(d.bedrag).toLocaleString('nl-NL');
+    $('alert').classList.add('show');
+    hart.pof();
+    vonken();
+    speelGeluid();
+    haalStand();
+    await wacht(7000);
+    $('alert').classList.remove('show');
+    await wacht(700);
+  }
+  async function volgende() {
+    if (bezig) return;
+    bezig = true;
+    while (wachtrij.length) await toon(wachtrij.shift());
+    bezig = false;
+  }
+
+  function verbind() {
+    const ws = new WebSocket(WS_URL);
+    ws.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.type === 'donatie') { wachtrij.push(d); volgende(); }
+      if (d.type === 'totaal') { doel = Number(d.doel) || doel; hart.zetFractie(Math.min(1, Number(d.totaal) / doel)); }
+    };
+    ws.onclose = () => setTimeout(verbind, 3000);
+  }
+
+  haalStand();
+  if (new URLSearchParams(location.search).get('demo') === '1') {
+    const NAMEN = [['Bramble', 10], ['Pixelpiet', 25], ['Anoniem', 5]];
+    let i = 0;
+    const demo = () => { const [naam, bedrag] = NAMEN[i++ % NAMEN.length]; wachtrij.push({ naam, bedrag }); volgende(); };
+    setTimeout(demo, 800); setInterval(demo, 9000);
+  } else verbind();
+</script>
+</body>
+</html>

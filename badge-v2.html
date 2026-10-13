@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streamers met een Hart-badge v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,800;1,9..144,800&family=Work+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* Badge in de 3D-stijl: een kloppend glazen hart naast "Ik zet me in voor Stichting Opkikker".
+     Browserbron 380x120, transparant. Het hart staat gevuld tot de actuele stand van het doel. */
+  :root { --groen: #52c285; --hart: #e23f73; --goud: #f0b44a; --tekst: #f2fbef; --dim: #b9d3bf; }
+  @property --hoek { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  @keyframes draai { to { --hoek: 360deg; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; font-family: 'Work Sans', system-ui, sans-serif; }
+  body { display: grid; place-items: center; }
+  .badge { position: relative; display: flex; align-items: center; gap: 4px; padding: 6px 26px 6px 2px; border-radius: 999px;
+    background: radial-gradient(140% 180% at 0% 50%, rgba(226, 63, 115, 0.3), transparent 55%), rgba(8, 22, 14, 0.88); box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.8), 0 0 34px -14px rgba(82, 194, 133, 0.7); }
+  .badge::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+    background: conic-gradient(from var(--hoek), var(--groen), var(--hart), var(--goud), var(--hart), var(--groen));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: draai 6s linear infinite; }
+  #hart { width: 92px; height: 92px; margin: -12px -6px; display: block; }
+  .tekst { display: grid; line-height: 1.1; }
+  .klein { font-size: 13px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--groen); }
+  .groot { font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 25px; color: var(--tekst); white-space: nowrap; }
+  .groot em { color: var(--hart); }
+</style>
+</head>
+<body>
+<div class="badge">
+  <canvas id="hart"></canvas>
+  <div class="tekst"><span class="klein">Ik zet me in voor</span><span class="groot">Stichting <em>Opkikker</em>!</span></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+  import { startHart } from './hart3d.js';
+  const hart = startHart(document.getElementById('hart'), { muis: false, hartjes: 0, vonken: false, afstand: 6.6 });
+  const stand = () => fetch('https://streamersmeteenhart-alerts-production.up.railway.app/status').then(r => r.json())
+    .then(d => hart.zetFractie(Math.min(1, Number(d.totaal) / (Number(d.doel) || 5000)))).catch(() => hart.zetFractie(0.5));
+  stand();
+  setInterval(stand, 60000);
+</script>
+</body>
+</html>
