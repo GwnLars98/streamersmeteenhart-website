@@ -416,6 +416,20 @@
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     html { scroll-behavior: auto; }
   }
+
+  /* Mededeling oktober 2026: de actie loopt nog tot en met 31 oktober, volgend jaar een nieuw doel */
+  .mededeling { background: #1F7A4C; color: #fff; }   /* vast donkergroen, ook in donkere modus (wit blijft leesbaar) */
+  .mededeling .wrap { display: flex; align-items: center; gap: clamp(1rem, 3vw, 2rem); flex-wrap: wrap; padding-top: 1.4rem; padding-bottom: 1.4rem; }
+  .mededeling .hartje { font-size: 2rem; line-height: 1; }
+  .mededeling .tekst { flex: 1 1 420px; }
+  .mededeling h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(1.25rem, 2.6vw, 1.6rem); margin: 0 0 .35rem; color: #fff; }
+  .mededeling p { margin: 0; line-height: 1.55; color: rgba(255,255,255,.92); }
+  .mededeling p + p { margin-top: .45rem; }
+  .mededeling .knoppen { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .mededeling .knoppen a { display: inline-block; padding: .65rem 1.1rem; border-radius: 999px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .mededeling .knoppen .wit { background: #fff; color: #145C38; }
+  .mededeling .knoppen .rand { border: 2px solid rgba(255,255,255,.7); color: #fff; }
+  .mededeling .knoppen a:hover { transform: translateY(-1px); }
 </style>
 </head>
 <body>
@@ -424,6 +438,22 @@
   <div class="mark">Streamers met een <span>Hart</span></div>
   <a class="btn btn-heart btn-small" href="https://www.inactievooropkikker.nl/teams/streamers-met-een-hart/donate" target="_blank" rel="noopener">Doneer</a>
 </div>
+
+<!-- Mededeling oktober 2026 -->
+<section class="mededeling" aria-label="Mededeling">
+  <div class="wrap">
+    <div class="hartje" aria-hidden="true">💚</div>
+    <div class="tekst">
+      <h2>De actie loopt nog tot en met 31 oktober</h2>
+      <p>Daarna sluiten we Streamers met een Hart voor dit jaar af. Samen hebben we een mooi bedrag opgehaald voor Stichting Opkikker: iedereen die heeft gestreamd, gedoneerd, gedeeld of meegekeken, ontzettend bedankt!</p>
+      <p>Volgend jaar komen we terug met een nieuw doel, nieuwe overlays, nieuwe alerts en alles een stuk beter. Heb jij een idee? Deel het in de Discord!</p>
+    </div>
+    <div class="knoppen">
+      <a class="wit" href="https://www.inactievooropkikker.nl/teams/streamers-met-een-hart/donate" target="_blank" rel="noopener">Nog doneren</a>
+      <a class="rand" href="https://discord.gg/nWbduw3qAk" target="_blank" rel="noopener">Deel je idee</a>
+    </div>
+  </div>
+</section>
 
 <section class="hero">
   <div class="hero-photo">
