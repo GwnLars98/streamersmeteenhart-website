@@ -2,97 +2,11 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Voortgang-widget v2</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Work+Sans:wght@600;700&display=swap" rel="stylesheet">
-<style>
-  /* Voortgang naar het doel in de 3D-stijl: een klein glazen hart dat zich vult, naast het bedrag
-     en een gloeiende glazen balk. Browserbron 500x160, transparant. Bij een nieuwe donatie
-     tolt het hart en licht de balk op; bij 100% wordt alles goud. ?demo=1 voor voorbeelddata. */
-  :root { --groen: #52c285; --hart: #e23f73; --goud: #f0b44a; --tekst: #f2fbef; --dim: #b9d3bf; }
-  @property --hoek { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-  @keyframes draai { to { --hoek: 360deg; } }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; font-family: 'Work Sans', system-ui, sans-serif; }
-  body { display: grid; place-items: center; }
-  .kaart { position: relative; width: min(96vw, 480px); min-width: 0; display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 4px; padding: 10px 22px 10px 6px; border-radius: 30px;
-    background: radial-gradient(120% 160% at 0% 0%, rgba(82, 194, 133, 0.3), transparent 60%), rgba(8, 22, 14, 0.88); box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.8), 0 0 40px -16px rgba(226, 63, 115, 0.6); }
-  .kaart::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
-    background: conic-gradient(from var(--hoek), var(--groen), var(--hart), var(--goud), var(--hart), var(--groen));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: draai 6s linear infinite; }
-  #hart { width: 120px; height: 120px; margin: -10px -8px; display: block; }
-  .rij { display: grid; gap: 0; }
-  .label { font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--groen); white-space: nowrap; }
-  .bedragen { white-space: nowrap; color: var(--dim); font-weight: 600; font-size: 15px; }
-  .huidig { font-family: 'Fraunces', Georgia, serif; font-weight: 800; font-size: 30px; line-height: 1.15; color: var(--tekst); }
-  .balk { position: relative; height: 12px; margin-top: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); overflow: hidden; }
-  .vulling { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--hart), #ff7aa0 60%, var(--goud)); box-shadow: 0 0 16px var(--hart); transition: width 1.6s cubic-bezier(0.2, 1, 0.3, 1); }
-  .vulling::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%); background-size: 220% 100%; animation: glans 2.8s linear infinite; }
-  @keyframes glans { from { background-position: 120% 0; } to { background-position: -120% 0; } }
-  .procent { margin-top: 5px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--dim); }
-  .kaart.flits { animation: flits 1.2s ease; }
-  @keyframes flits { 25% { box-shadow: 0 0 60px -4px var(--hart); } }
-  .kaart.voltooid .vulling { background: linear-gradient(90deg, var(--goud), #ffe08a, var(--goud)); box-shadow: 0 0 22px var(--goud); }
-  .kaart.voltooid .label { color: var(--goud); }
-</style>
+<title>Streamers met een Hart · afgelopen</title>
+<!-- Deze widget is offline sinds de afsluiting van Streamers met een Hart (31 oktober 2026).
+     Bewust een lege, transparante pagina: wie hem nog als browserbron in OBS heeft, ziet niets
+     in beeld in plaats van een foutmelding. De oude versie staat in git-tag actie-2026. -->
+<style>html, body { margin: 0; background: transparent; }</style>
 </head>
-<body>
-<div class="kaart" id="kaart">
-  <canvas id="hart"></canvas>
-  <div>
-    <div class="rij"><span class="label" id="label">Streamers met een Hart</span><span class="bedragen"><span class="huidig" id="huidig">€0</span> <span id="doel">/ €5.000</span></span></div>
-    <div class="balk"><div class="vulling" id="balk"></div></div>
-    <div class="procent" id="procent">0% van het doel voor Stichting Opkikker</div>
-  </div>
-</div>
-
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
-<script type="module">
-  import { startHart } from './hart3d.js';
-  const SERVER = 'https://streamersmeteenhart-alerts-production.up.railway.app';
-  const $ = id => document.getElementById(id);
-  const hart = startHart($('hart'), { muis: false, hartjes: 0, vonken: false, afstand: 6.8 });
-  const euro = n => '€' + Number(n).toLocaleString('nl-NL');
-  let vorige = null;
-
-  function bijwerken(d) {
-    const doel = Number(d.doel) || 5000, totaal = Number(d.totaal) || 0;
-    const f = Math.min(1, totaal / doel);
-    $('huidig').textContent = euro(totaal);
-    $('doel').textContent = '/ ' + euro(doel);
-    $('balk').style.width = (f * 100) + '%';
-    $('procent').textContent = f >= 1 ? 'Doel bereikt, bedankt allemaal!' : `${Math.round(f * 100)}% van het doel voor Stichting Opkikker`;
-    $('label').textContent = f >= 1 ? 'Doel bereikt!' : 'Streamers met een Hart';
-    $('kaart').classList.toggle('voltooid', f >= 1);
-    hart.zetFractie(f);
-    if (vorige !== null && totaal > vorige) {
-      hart.pof();
-      $('kaart').classList.remove('flits'); void $('kaart').offsetWidth; $('kaart').classList.add('flits');
-    }
-    vorige = totaal;
-  }
-
-  if (new URLSearchParams(location.search).get('demo') === '1') {
-    let t = 374;
-    bijwerken({ totaal: t, doel: 5000 });
-    setInterval(() => bijwerken({ totaal: (t += 25), doel: 5000 }), 5000);
-  } else {
-    // eerst de laatste stand, daarna live bijwerken via de websocket
-    fetch(`${SERVER}/status`).then(r => r.json()).then(bijwerken).catch(() => {});
-    const verbind = () => {
-      const ws = new WebSocket('wss://streamersmeteenhart-alerts-production.up.railway.app/ws');
-      ws.onmessage = e => { const d = JSON.parse(e.data); if (d.type === 'totaal') bijwerken(d); };
-      ws.onclose = () => setTimeout(verbind, 3000);
-    };
-    verbind();
-  }
-</script>
-</body>
+<body></body>
 </html>
